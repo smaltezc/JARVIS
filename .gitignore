@@ -8,6 +8,7 @@ server/models/*
 server/logs/
 server/models_dev
 server/public/*
+!server/public/voice.html
 !server/public/examples/
 server/public/examples/*
 !server/public/examples/a.jpg

@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS · Sesli İstemci</title>
+<style>
+  :root {
+    --paper:#E4E9EA; --surface:#fff; --sunk:#D5DDDE; --line:#C2CDCE;
+    --ink:#0F1718; --muted:#55676A; --signal:#0B7C7F; --signal-soft:#D4E8E8;
+    --flag:#B43D19; --flag-soft:#F4DED6; --ok:#2F6B3A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:#0A1112; --surface:#131D1F; --sunk:#0D1617; --line:#243234;
+      --ink:#E2EAEA; --muted:#8BA1A3; --signal:#38C6C9; --signal-soft:#10312F;
+      --flag:#EC7A49; --flag-soft:#351A11; --ok:#71C381;
+    }
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--paper); color:var(--ink);
+    font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:40rem; margin:0 auto; padding-inline:20px; padding-block:26px 52px;
+          display:flex; flex-direction:column; gap:20px; }
+  h1 { margin:0; font-size:1.7rem; letter-spacing:-.02em; }
+  .eyebrow { font-family:ui-monospace,monospace; font-size:.66rem; font-weight:600;
+             letter-spacing:.16em; text-transform:uppercase; color:var(--signal); }
+  .lede { margin:0; color:var(--muted); font-size:.96rem; }
+
+  .mode { display:flex; gap:10px; align-items:flex-start; padding:13px 15px;
+          border-radius:9px; background:var(--sunk); border:1px solid var(--line); font-size:.9rem; }
+  .mode .pip { width:9px; height:9px; border-radius:50%; flex:none; margin-top:.45em; background:var(--muted); }
+  .mode.full .pip { background:var(--signal); }
+  .mode.partial .pip { background:var(--flag); }
+  .mode b { font-weight:600; }
+
+  #mic { -webkit-appearance:none; appearance:none; width:100%;
+         display:flex; align-items:center; justify-content:center; gap:11px;
+         padding:20px; font:600 1.06rem inherit; color:#fff; background:var(--signal);
+         border:none; border-radius:999px; cursor:pointer; }
+  #mic:active { transform:scale(.98); }
+  #mic[disabled] { opacity:.5; }
+  #mic.rec { background:var(--flag); }
+  #mic .dot { width:11px; height:11px; border-radius:50%; background:currentColor; }
+  #mic.rec .dot { animation:p 1.15s ease-in-out infinite; }
+  @keyframes p { 50% { opacity:.25; transform:scale(.7); } }
+  @media (prefers-reduced-motion:reduce) { #mic.rec .dot { animation:none; } }
+  .hint { font-size:.84rem; color:var(--muted); text-align:center; min-height:1.3em; }
+
+  .panel { background:var(--surface); border:1px solid var(--line);
+           border-left:4px solid var(--signal); border-radius:4px; padding:16px 18px;
+           display:flex; flex-direction:column; gap:8px; }
+  .panel.answer { background:var(--signal-soft); border-color:color-mix(in srgb,var(--signal) 28%,transparent); }
+  .lbl { font-family:ui-monospace,monospace; font-size:.64rem; font-weight:600;
+         letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+         display:flex; justify-content:space-between; gap:10px; align-items:center; }
+  .panel.answer .lbl { color:var(--signal); }
+  #heard, #answer { margin:0; overflow-wrap:break-word; }
+  #heard { font-family:ui-monospace,monospace; font-size:1.08rem; }
+  #heard.idle { color:var(--muted); }
+
+  details { background:var(--sunk); border:1px solid var(--line); border-radius:9px; padding:12px 15px; }
+  summary { cursor:pointer; font-size:.9rem; font-weight:600; }
+  details label { display:block; margin-top:11px; font-size:.85rem; color:var(--muted); }
+  details input { width:100%; margin-top:5px; padding:10px 12px; border-radius:4px;
+                  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+                  font:.9rem ui-monospace,monospace; }
+  details p { font-size:.82rem; color:var(--muted); margin:9px 0 0; }
+
+  .warn { padding:13px 15px; border-radius:4px; background:var(--flag-soft);
+          border:1px solid color-mix(in srgb,var(--flag) 32%,transparent); font-size:.9rem; }
+  .warn strong { color:var(--flag); }
+  [hidden] { display:none !important; }
+
+  ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:9px; }
+  li { background:var(--surface); border:1px solid var(--line); border-radius:4px;
+       padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+  li.wrong { border-left:3px solid var(--flag); }
+  li.right { border-left:3px solid var(--ok); }
+  li .said { font-family:ui-monospace,monospace; font-size:.92rem; overflow-wrap:break-word; }
+  li .marks { display:flex; gap:8px; flex-wrap:wrap; }
+  li button { -webkit-appearance:none; appearance:none; font:600 .77rem inherit;
+              padding:7px 13px; border-radius:999px; border:1px solid var(--line);
+              background:transparent; color:var(--muted); cursor:pointer; }
+  li button[aria-pressed="true"][data-v="1"] { background:var(--ok); border-color:var(--ok); color:#fff; }
+  li button[aria-pressed="true"][data-v="0"] { background:var(--flag); border-color:var(--flag); color:#fff; }
+  .tally { padding-top:18px; border-top:1px solid var(--line);
+           display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; }
+  .tally h2 { margin:0; font-size:1rem; }
+  .score { font-family:ui-monospace,monospace; font-variant-numeric:tabular-nums;
+           font-size:.87rem; color:var(--muted); }
+  .score b { color:var(--ink); }
+  footer { border-top:1px solid var(--line); padding-top:16px; color:var(--muted); font-size:.8rem; }
+  footer code { font-family:ui-monospace,monospace; color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">JARVIS · mobil sesli istemci</div>
+    <h1>Konuş, dinle</h1>
+    <p class="lede">Tarayıcının kendi mikrofonuyla konuş; cevabı sesli duy. Sunucu adresi verirsen JARVIS cevaplar, vermezsen duyduğunu geri okur.</p>
+  </header>
+
+  <div class="mode" id="mode"><span class="pip"></span><div id="modeText">Hazırlanıyor…</div></div>
+  <div class="warn" id="warn" hidden></div>
+
+  <button id="mic" type="button"><span class="dot"></span><span id="micLabel">Konuşmaya başla</span></button>
+  <div class="hint" id="hint">Bas, konuş, sustuğunda kendisi durur.</div>
+
+  <section class="panel">
+    <div class="lbl"><span>Duyulan</span><span id="conf"></span></div>
+    <p id="heard" class="idle">Henüz bir şey duymadım.</p>
+  </section>
+
+  <section class="panel answer" id="answerBox" hidden>
+    <div class="lbl"><span id="answerLbl">Cevap</span></div>
+    <p id="answer"></p>
+  </section>
+
+  <details id="cfg">
+    <summary>JARVIS sunucusuna bağlan</summary>
+    <label for="ep">Sunucu adresi (<code>/hugginggpt</code> ucu)</label>
+    <input id="ep" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+           placeholder="https://sunucum.example.com/hugginggpt">
+    <p>Boş bırakırsan yankı modunda çalışır — sadece ses yolunu test eder. Adres <b>https</b> olmalı: bu sayfa güvenli bağlamda çalıştığı için tarayıcı karışık içeriğe izin vermez.</p>
+  </details>
+
+  <div class="tally"><h2>Doğruluk defteri</h2><div class="score" id="score">Henüz kayıt yok</div></div>
+  <ul id="log"></ul>
+
+  <footer>
+    <p>Bu sayfa <code>server/public/</code> içinde durur ve <code>awesome_chat.py --mode server</code> tarafından yayınlanır.</p>
+    <p><b>Mikrofon güvenli bağlam ister:</b> <code>https://</code> ya da <code>localhost</code>. Telefondan yerel ağ IP'sine <code>http://</code> ile bağlanırsan tarayıcı mikrofonu vermez — bir HTTPS tüneli gerekir.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var modeBox=$("mode"), modeText=$("modeText"), warn=$("warn"), micBtn=$("mic"),
+      micLabel=$("micLabel"), hint=$("hint"), heard=$("heard"), conf=$("conf"),
+      answerBox=$("answerBox"), answerLbl=$("answerLbl"), answer=$("answer"),
+      ep=$("ep"), logEl=$("log"), scoreEl=$("score");
+
+  var EPKEY="jarvis-endpoint", LOGKEY="jarvis-voice-log";
+  var entries=[], messages=[], recognizing=false, rec=null;
+
+  function get(k,d){ try{ var v=localStorage.getItem(k); return v===null?d:v; }catch(e){ return d; } }
+  function set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+  ep.value = get(EPKEY,"");
+  ep.addEventListener("change", function(){ set(EPKEY, ep.value.trim()); paint(); });
+  try { entries = JSON.parse(get(LOGKEY,"[]")) || []; } catch(e) { entries=[]; }
+  function saveLog(){ set(LOGKEY, JSON.stringify(entries.slice(-60))); }
+
+  function say(msg){ if(!msg){ warn.hidden=true; return; } warn.innerHTML=msg; warn.hidden=false; }
+
+  function paint(){
+    var url = ep.value.trim();
+    if (!window.isSecureContext) {
+      modeBox.className="mode partial";
+      modeText.innerHTML="<b>Güvensiz bağlam.</b> Bu sayfa <code>https://</code> ya da "+
+        "<code>localhost</code> üzerinden açılmalı; tarayıcı burada mikrofonu vermez.";
+      return;
+    }
+    modeBox.className = url ? "mode full" : "mode partial";
+    modeText.innerHTML = url
+      ? "<b>JARVIS bağlı.</b> Konuş — cevabı sunucudan alıp sesli okuyacağım."
+      : "<b>Yankı modu.</b> Mikrofon ve seslendirme test edilir; cevabı JARVIS değil, sayfa üretir. "+
+        "Sunucu adresi girersen gerçek cevap gelir.";
+  }
+
+  /* ---- konuşma sentezi ---- */
+  var voice=null, canSpeak=("speechSynthesis" in window)&&("SpeechSynthesisUtterance" in window);
+  function pick(){ try{ voice=(speechSynthesis.getVoices()||[]).filter(function(v){
+    return /^tr(-|_|$)/i.test(v.lang); })[0]||null; }catch(e){} }
+  if(canSpeak){ pick(); try{ speechSynthesis.onvoiceschanged=pick; }catch(e){} }
+  function unlock(){ if(!canSpeak) return; try{ var u=new SpeechSynthesisUtterance(" ");
+    u.volume=0; speechSynthesis.speak(u); }catch(e){} }
+  function speak(t){ if(!canSpeak||!t) return; try{ speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(t); u.lang="tr-TR"; if(voice) u.voice=voice;
+    speechSynthesis.speak(u); }catch(e){} }
+
+  /* ---- defter ---- */
+  function render(){
+    logEl.innerHTML="";
+    var judged=entries.filter(function(e){return e.ok!==null;});
+    var wrong=judged.filter(function(e){return e.ok===false;}).length;
+    if(!entries.length){ scoreEl.textContent="Henüz kayıt yok"; return; }
+    scoreEl.innerHTML = judged.length
+      ? "<b>"+judged.length+"</b> işaretliden <b>"+wrong+"</b> yanlış · doğruluk <b>"+
+        Math.round(((judged.length-wrong)/judged.length)*100)+"%</b>"
+      : "<b>"+entries.length+"</b> deneme · henüz işaretlenmedi";
+    entries.slice().reverse().forEach(function(e){
+      var li=document.createElement("li");
+      if(e.ok===true) li.className="right";
+      if(e.ok===false) li.className="wrong";
+      var d=document.createElement("div"); d.className="said"; d.textContent="“"+e.text+"”";
+      li.appendChild(d);
+      var m=document.createElement("div"); m.className="marks";
+      [["1","Doğru",true],["0","Yanlış",false]].forEach(function(s){
+        var b=document.createElement("button"); b.type="button"; b.dataset.v=s[0];
+        b.textContent=s[1]; b.setAttribute("aria-pressed",String(e.ok===s[2]));
+        b.onclick=function(){ e.ok=(e.ok===s[2])?null:s[2]; saveLog(); render(); };
+        m.appendChild(b);
+      });
+      li.appendChild(m); logEl.appendChild(li);
+    });
+  }
+
+  /* ---- cevap ---- */
+  function reply(text){
+    var url=ep.value.trim();
+    if(!url){
+      answerLbl.textContent="Yankı · JARVIS bağlı değil";
+      answerBox.hidden=false;
+      var t="Şunu duydum: "+text;
+      answer.textContent=t; speak(t);
+      return;
+    }
+    answerLbl.textContent="Cevap";
+    answerBox.hidden=false; answer.textContent="Düşünüyor…";
+    messages.push({role:"user",content:text});
+    fetch(url,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({messages:messages.slice(-8)})
+    }).then(function(r){
+      if(!r.ok) throw new Error("Sunucu "+r.status+" döndü");
+      return r.json();
+    }).then(function(d){
+      if(d.error) throw new Error(typeof d.error==="string"?d.error:"Sunucu hata bildirdi");
+      var msg=d.message||"(boş cevap)";
+      messages.push({role:"assistant",content:msg});
+      answer.textContent=msg; speak(msg);
+    })["catch"](function(err){
+      messages.pop();
+      answer.textContent="Sunucuya ulaşamadım: "+err.message;
+      say("JARVIS'e bağlanamadım. Adres doğru mu, sunucu ayakta mı, <b>https</b> mi? "+
+          "Sayfa güvenli bağlamda olduğu için <code>http://</code> adresler engellenir.");
+    });
+  }
+
+  function record(text){
+    entries.push({text:text,ok:null,at:Date.now()});
+    saveLog(); render(); reply(text);
+  }
+
+  /* ---- tanıma ---- */
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    micBtn.disabled=true; micLabel.textContent="Bu tarayıcı desteklemiyor"; hint.textContent="";
+    say("Bu tarayıcı canlı ses tanımayı desteklemiyor. Android'de <b>Chrome</b>, iPhone'da <b>Safari</b> dene.");
+  } else {
+    rec=new SR(); rec.lang="tr-TR"; rec.interimResults=true;
+    rec.continuous=false; rec.maxAlternatives=1;
+    rec.onstart=function(){ recognizing=true; micBtn.classList.add("rec");
+      micLabel.textContent="Dinliyorum — bitince bas";
+      hint.textContent="Konuş. Sustuğunda kendiliğinden duracak.";
+      heard.className=""; heard.textContent=""; conf.textContent=""; };
+    rec.onresult=function(ev){
+      var fin="",interim="";
+      for(var i=ev.resultIndex;i<ev.results.length;i++){
+        var r=ev.results[i];
+        if(r.isFinal) fin+=r[0].transcript; else interim+=r[0].transcript;
+      }
+      if(interim){ heard.textContent=interim; heard.style.opacity=".6"; }
+      if(fin){
+        heard.style.opacity="1";
+        var t=fin.trim(); heard.textContent=t;
+        var c=ev.results[ev.resultIndex][0].confidence;
+        conf.textContent=(typeof c==="number"&&c>0)?"güven "+Math.round(c*100)+"%":"";
+        if(t) record(t);
+      }
+    };
+    rec.onerror=function(ev){
+      recognizing=false; micBtn.classList.remove("rec"); micLabel.textContent="Konuşmaya başla";
+      var e=ev.error;
+      if(e==="not-allowed"||e==="service-not-allowed"){
+        say("<strong>Mikrofon izni verilmedi.</strong> İzin penceresi hiç çıkmadıysa sayfa "+
+            "güvensiz bağlamda (<code>http://</code>) ya da bir iframe içinde açılmış demektir. "+
+            "Doğrudan <code>https://</code> adresiyle aç.");
+      } else if(e==="no-speech"){ hint.textContent="Ses duymadım. Tekrar bas, biraz yüksek konuş.";
+      } else if(e==="audio-capture"){ say("Mikrofona ulaşamadım — başka bir uygulama kullanıyor olabilir.");
+      } else if(e==="network"){ say("Ses tanıma sunucusuna ulaşılamadı; bağlantını kontrol et.");
+      } else if(e!=="aborted"){ hint.textContent="Tanıma durdu ("+e+"). Tekrar dene."; }
+    };
+    rec.onend=function(){ recognizing=false; micBtn.classList.remove("rec");
+      micLabel.textContent="Tekrar konuş"; };
+    micBtn.onclick=function(){
+      if(recognizing){ try{ rec.stop(); }catch(e){} return; }
+      say(""); unlock();
+      try{ rec.start(); }catch(e){ hint.textContent="Bir saniye bekleyip tekrar bas."; }
+    };
+  }
+
+  if(ep.value.trim()) $("cfg").open=false;
+  paint(); render();
+})();
+</script>
+</body>
+</html>
