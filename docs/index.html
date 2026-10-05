@@ -1,0 +1,1114 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Go · Çevrim İçi</title>
+<meta name="description" content="İki kişilik, tarayıcıdan tarayıcıya çevrim içi Go oyunu.">
+<style>
+:root {
+  --bg: #f3efe6;
+  --surface: #fffdf8;
+  --surface-2: #f7f2e7;
+  --text: #1f1c17;
+  --muted: #6c6457;
+  --border: #ddd3c1;
+  --accent: #2c6e5c;
+  --accent-hover: #245c4d;
+  --accent-text: #ffffff;
+  --danger: #b3261e;
+  --ok: #2e7d32;
+  --warn: #b26a00;
+  --wood: #dcb466;
+  --wood-edge: #c99c48;
+  --line: #3a2a13;
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 6px 20px rgba(60,40,10,.08);
+  --radius: 14px;
+}
+:root[data-theme="dark"] {
+  --bg: #15171a;
+  --surface: #1e2125;
+  --surface-2: #262a2f;
+  --text: #ece7de;
+  --muted: #a39b8e;
+  --border: #353a41;
+  --accent: #4fae93;
+  --accent-hover: #63c1a5;
+  --accent-text: #0e1513;
+  --danger: #ef6a5f;
+  --ok: #6cc070;
+  --warn: #e3a646;
+  --wood: #b88f45;
+  --wood-edge: #9c7535;
+  --line: #2a1d0b;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171a;
+    --surface: #1e2125;
+    --surface-2: #262a2f;
+    --text: #ece7de;
+    --muted: #a39b8e;
+    --border: #353a41;
+    --accent: #4fae93;
+    --accent-hover: #63c1a5;
+    --accent-text: #0e1513;
+    --danger: #ef6a5f;
+    --ok: #6cc070;
+    --warn: #e3a646;
+    --wood: #b88f45;
+    --wood-edge: #9c7535;
+    --line: #2a1d0b;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  min-height: 100svh;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input { font: inherit; color: inherit; }
+header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  max-width: 1100px; margin: 0 auto;
+}
+header h1 { font-size: 1.15rem; margin: 0; letter-spacing: .02em; display: flex; align-items: center; gap: 8px; }
+header h1 a { color: inherit; text-decoration: none; }
+.logo { width: 22px; height: 22px; display: inline-block; }
+.spacer { flex: 1; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .82rem; padding: 4px 10px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+  white-space: nowrap;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.badge[data-s="connected"] .dot { background: var(--ok); }
+.badge[data-s="connecting"] .dot { background: var(--warn); animation: pulse 1s infinite alternate; }
+.badge[data-s="disconnected"] .dot { background: var(--danger); animation: pulse .6s infinite alternate; }
+@keyframes pulse { from { opacity: 1; } to { opacity: .3; } }
+.icon-btn {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 10px;
+  width: 36px; height: 36px; display: inline-grid; place-items: center; cursor: pointer;
+}
+.icon-btn svg { width: 18px; height: 18px; }
+main { max-width: 1100px; margin: 0 auto; padding: 0 16px 24px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 16px;
+}
+.btn {
+  border: 1px solid var(--border); background: var(--surface-2); border-radius: 10px;
+  padding: 10px 14px; cursor: pointer; min-height: 44px; font-weight: 550;
+}
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.btn.primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn.danger { color: var(--danger); }
+.hidden { display: none !important; }
+
+/* Lobby */
+#lobby { max-width: 520px; margin: 16px auto 0; }
+#lobby h2 { margin: 0 0 4px; font-size: 1.35rem; }
+#lobby p.lead { margin: 0 0 16px; color: var(--muted); }
+fieldset { border: 0; padding: 0; margin: 0 0 16px; }
+legend { font-weight: 600; margin-bottom: 8px; font-size: .95rem; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
+.seg label {
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center;
+  cursor: pointer; background: var(--surface-2); min-height: 44px; display: grid; place-items: center;
+}
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--surface); }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg small { display: block; color: var(--muted); font-size: .78rem; }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; margin-right: 6px; }
+.swatch.b { background: radial-gradient(circle at 35% 30%, #666, #000 70%); }
+.swatch.w { background: radial-gradient(circle at 35% 30%, #fff, #cfcfcf 80%); border: 1px solid #999; }
+.swatch.r { background: linear-gradient(90deg, #111 50%, #eee 50%); border: 1px solid #999; }
+.rules { color: var(--muted); font-size: .88rem; margin: 16px 0 0; padding-left: 18px; }
+.rules li { margin: 2px 0; }
+
+/* Game */
+#game { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 900px) {
+  #game { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
+}
+.board-col { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; }
+.board-wrap { width: min(100%, calc(100svh - 190px)); min-width: min(100%, 300px); aspect-ratio: 1; }
+@media (min-width: 900px) { .board-wrap { width: min(100%, calc(100svh - 110px)); } }
+#board { width: 100%; height: 100%; display: block; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+#board .wood { fill: var(--wood); stroke: var(--wood-edge); stroke-width: 2; }
+#board .ln { stroke: var(--line); stroke-width: 1.1; }
+#board .ln.edge { stroke-width: 1.8; }
+#board .star { fill: var(--line); }
+#board .coord { fill: var(--line); opacity: .75; font-size: 13px; font-family: system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
+#board .hit { fill: transparent; cursor: pointer; }
+.status-line { text-align: center; font-weight: 600; min-height: 1.5em; }
+.status-line small { display: block; font-weight: 400; color: var(--muted); }
+
+.players { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; max-width: 640px; }
+.player {
+  border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; background: var(--surface);
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.player.turn { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.player .stone { width: 26px; height: 26px; border-radius: 50%; }
+.player .stone.b { background: radial-gradient(circle at 35% 30%, #6a6a6a, #050505 70%); }
+.player .stone.w { background: radial-gradient(circle at 35% 30%, #ffffff, #cdcdcd 85%); border: 1px solid #9a9a9a; }
+.player .who { font-weight: 600; font-size: .95rem; line-height: 1.2; }
+.player .who small { display: flex; align-items: center; gap: 5px; font-weight: 400; color: var(--muted); font-size: .78rem; }
+.player .who .dot.on { background: var(--ok); }
+.player .caps { text-align: right; font-size: .78rem; color: var(--muted); line-height: 1.2; }
+.player .caps b { display: block; font-size: 1.05rem; color: var(--text); }
+
+.side { display: flex; flex-direction: column; gap: 12px; }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; max-width: 640px; }
+.controls .btn { width: 100%; }
+.side .card h3 { margin: 0 0 8px; font-size: .95rem; }
+.invite input {
+  width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface-2); font-size: .85rem; margin-bottom: 8px;
+}
+.invite.prominent { border-color: var(--accent); }
+.muted { color: var(--muted); font-size: .88rem; }
+.score-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.score-table td, .score-table th { padding: 4px 2px; text-align: right; }
+.score-table th:first-child, .score-table td:first-child { text-align: left; }
+.score-table tr.total td { border-top: 1px solid var(--border); font-weight: 700; }
+.result { font-size: 1.1rem; font-weight: 700; margin: 0 0 6px; }
+.approvals { display: flex; gap: 12px; font-size: .85rem; color: var(--muted); margin: 6px 0 0; flex-wrap: wrap; }
+.approvals .yes { color: var(--ok); font-weight: 600; }
+
+#toast {
+  position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: 8px; align-items: center; z-index: 50; pointer-events: none;
+  width: calc(100% - 32px); max-width: 420px;
+}
+#toast div {
+  background: var(--text); color: var(--bg); padding: 10px 14px; border-radius: 10px;
+  font-size: .9rem; box-shadow: var(--shadow); animation: fadein .15s ease-out; text-align: center;
+}
+@keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+dialog {
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+  padding: 16px; width: min(420px, calc(100% - 32px)); box-shadow: var(--shadow);
+}
+dialog::backdrop { background: rgba(0,0,0,.4); }
+dialog h3 { margin: 0 0 12px; }
+.dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.notice { border-color: var(--danger); }
+</style>
+</head>
+<body>
+<header>
+  <h1><a href="./" id="home-link">
+    <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="6" fill="#111" stroke="#888"/><circle cx="16" cy="15" r="6" fill="#f4f4f4" stroke="#888"/></svg>
+    Go</a></h1>
+  <div class="spacer"></div>
+  <span id="conn" class="badge hidden" data-s="connecting" role="status" aria-live="polite"><span class="dot"></span><span id="conn-text">Bağlanıyor…</span></span>
+  <button id="theme-btn" class="icon-btn" type="button" title="Tema" aria-label="Tema değiştir"></button>
+</header>
+
+<main>
+  <!-- Lobi -->
+  <section id="lobby" class="card hidden">
+    <h2>Yeni oyun kur</h2>
+    <p class="lead">Tahtayı ve rengini seç, sana bir oda linki verelim. Linki açan ilk kişi rakibin olur.</p>
+    <form id="create-form">
+      <fieldset>
+        <legend>Tahta boyutu</legend>
+        <div class="seg">
+          <label><input type="radio" name="size" value="9">9×9<small>hızlı</small></label>
+          <label><input type="radio" name="size" value="13">13×13<small>orta</small></label>
+          <label><input type="radio" name="size" value="19" checked>19×19<small>klasik</small></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Rengin</legend>
+        <div class="seg">
+          <label><input type="radio" name="color" value="1" checked><span><span class="swatch b"></span>Siyah</span></label>
+          <label><input type="radio" name="color" value="2"><span><span class="swatch w"></span>Beyaz</span></label>
+          <label><input type="radio" name="color" value="r"><span><span class="swatch r"></span>Rastgele</span></label>
+        </div>
+      </fieldset>
+      <button class="btn primary" type="submit" style="width:100%">Oda kur</button>
+    </form>
+    <ul class="rules">
+      <li>Siyah başlar. Komi 6,5 (beyaza).</li>
+      <li>Taş yeme, intihar hamlesi yasağı ve ko kuralı uygulanır.</li>
+      <li>Art arda iki pastan sonra sayım: ölü grupları işaretleyin, ikiniz de onaylayınca skor kesinleşir (bölge + esir).</li>
+      <li>Telefonda: ilk dokunuş taşı gölge olarak gösterir, aynı noktaya ikinci dokunuş koyar.</li>
+    </ul>
+  </section>
+
+  <!-- Oyun -->
+  <section id="game" class="hidden">
+    <div class="board-col">
+      <div class="players">
+        <div class="player" id="p1"></div>
+        <div class="player" id="p2"></div>
+      </div>
+      <div class="status-line" id="status" aria-live="polite"></div>
+      <div class="board-wrap"><svg id="board" role="img" aria-label="Go tahtası"></svg></div>
+      <div class="controls" id="controls"></div>
+    </div>
+    <aside class="side">
+      <div class="card hidden notice" id="notice-card"></div>
+      <div class="card hidden" id="score-card"></div>
+      <div class="card invite" id="invite-card">
+        <h3 id="invite-title">Oda linki</h3>
+        <p class="muted" id="invite-text" style="margin:0 0 8px"></p>
+        <input id="invite-url" readonly aria-label="Oda linki">
+        <button class="btn primary" id="copy-btn" type="button" style="width:100%">Linki kopyala</button>
+      </div>
+      <div class="card">
+        <h3>Oyun</h3>
+        <p class="muted" id="info" style="margin:0"></p>
+        <div id="host-tools" class="hidden" style="margin-top:10px">
+          <button class="btn" id="newgame-btn" type="button" style="width:100%">Yeni oyun</button>
+        </div>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<dialog id="newgame-dlg">
+  <form method="dialog" id="newgame-form">
+    <h3>Yeni oyun</h3>
+    <fieldset>
+      <legend>Tahta boyutu</legend>
+      <div class="seg">
+        <label><input type="radio" name="size" value="9">9×9</label>
+        <label><input type="radio" name="size" value="13">13×13</label>
+        <label><input type="radio" name="size" value="19">19×19</label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Rengin</legend>
+      <div class="seg">
+        <label><input type="radio" name="color" value="1"><span><span class="swatch b"></span>Siyah</span></label>
+        <label><input type="radio" name="color" value="2"><span><span class="swatch w"></span>Beyaz</span></label>
+        <label><input type="radio" name="color" value="r"><span><span class="swatch r"></span>Rastgele</span></label>
+      </div>
+    </fieldset>
+    <p class="muted" id="newgame-warn" style="margin:0 0 12px">Devam eden oyun silinir.</p>
+    <div class="dialog-actions">
+      <button class="btn" value="cancel" type="submit">Vazgeç</button>
+      <button class="btn primary" value="ok" type="submit" id="newgame-ok">Başlat</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" aria-live="assertive"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script>
+'use strict';
+
+/* ================= Yardımcılar ================= */
+const $ = (s) => document.querySelector(s);
+const BLACK = 1, WHITE = 2;
+const other = (c) => 3 - c;
+const COLOR_NAME = { 1: 'Siyah', 2: 'Beyaz' };
+const LETTERS = 'ABCDEFGHJKLMNOPQRST';
+const fmt = (n) => n.toLocaleString('tr-TR', { maximumFractionDigits: 1 });
+const rid = (len) => {
+  const a = 'abcdefghijkmnpqrstuvwxyz23456789';
+  const buf = new Uint32Array(len);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (x) => a[x % a.length]).join('');
+};
+const store = {
+  get(k, session) { try { const v = (session ? sessionStorage : localStorage).getItem(k); return v == null ? null : JSON.parse(v); } catch { return null; } },
+  set(k, v, session) { try { (session ? sessionStorage : localStorage).setItem(k, JSON.stringify(v)); } catch {} },
+};
+function toast(msg, ms = 2600) {
+  const el = document.createElement('div');
+  el.textContent = msg;
+  $('#toast').appendChild(el);
+  setTimeout(() => el.remove(), ms);
+}
+
+/* ================= Tema ================= */
+const THEMES = ['system', 'light', 'dark'];
+const THEME_ICON = {
+  system: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>',
+  light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  dark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
+};
+const THEME_LABEL = { system: 'Tema: sistem', light: 'Tema: açık', dark: 'Tema: koyu' };
+let theme = store.get('go:theme') || 'system';
+function applyTheme() {
+  if (theme === 'system') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', theme);
+  $('#theme-btn').innerHTML = THEME_ICON[theme];
+  $('#theme-btn').title = THEME_LABEL[theme];
+}
+$('#theme-btn').addEventListener('click', () => {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  store.set('go:theme', theme);
+  applyTheme();
+  toast(THEME_LABEL[theme], 1200);
+});
+applyTheme();
+
+/* ================= Kurallar ================= */
+function neighbors(i, n) {
+  const x = i % n, y = (i / n) | 0, r = [];
+  if (x > 0) r.push(i - 1);
+  if (x < n - 1) r.push(i + 1);
+  if (y > 0) r.push(i - n);
+  if (y < n - 1) r.push(i + n);
+  return r;
+}
+function groupAt(board, n, i) {
+  const color = board[i], stones = [i], libs = new Set(), seen = new Set([i]);
+  for (let k = 0; k < stones.length; k++) {
+    for (const nb of neighbors(stones[k], n)) {
+      if (board[nb] === 0) libs.add(nb);
+      else if (board[nb] === color && !seen.has(nb)) { seen.add(nb); stones.push(nb); }
+    }
+  }
+  return { stones, libs };
+}
+// Hamleyi dener; geçersizse Error fırlatır.
+function tryPlay(s, i, color) {
+  const n = s.size;
+  if (!Number.isInteger(i) || i < 0 || i >= n * n) throw new Error('Geçersiz nokta');
+  if (s.board[i] !== 0) throw new Error('Bu nokta dolu');
+  const b = s.board.slice();
+  b[i] = color;
+  let captured = 0;
+  for (const nb of neighbors(i, n)) {
+    if (b[nb] === other(color)) {
+      const g = groupAt(b, n, nb);
+      if (g.libs.size === 0) { for (const st of g.stones) b[st] = 0; captured += g.stones.length; }
+    }
+  }
+  if (groupAt(b, n, i).libs.size === 0) throw new Error('İntihar hamlesi yasak');
+  if (s.koBoard && b.join('') === s.koBoard) throw new Error('Ko: bu taşı hemen geri alamazsın, önce başka yere oyna');
+  return { board: b, captured };
+}
+function newState(size, hostColor, v = 0, gid = rid(8)) {
+  return {
+    gid, v, size, komi: 6.5,
+    board: new Array(size * size).fill(0),
+    turn: BLACK, captures: { 1: 0, 2: 0 }, koBoard: null,
+    lastMove: null, passes: 0, moveNo: 0,
+    phase: 'play', dead: [], approvals: { 1: false, 2: false }, result: null,
+    hostColor, log: [],
+  };
+}
+const colorOf = (s, actor) => (actor === 'host' ? s.hostColor : other(s.hostColor));
+
+// Saf fonksiyon: (durum, eylem, aktör) -> yeni durum. Her iki taraf da aynı doğrulamayı yapar.
+function applyAction(s0, a, actor) {
+  if (!a || typeof a.type !== 'string') throw new Error('Geçersiz eylem');
+  if (actor !== 'host' && actor !== 'guest') throw new Error('Geçersiz oyuncu');
+  const color = colorOf(s0, actor);
+  if (a.type === 'newGame') {
+    if (actor !== 'host') throw new Error('Yeni oyunu sadece kurucu başlatabilir');
+    if (![9, 13, 19].includes(a.size) || ![1, 2].includes(a.hostColor) || typeof a.gid !== 'string') throw new Error('Geçersiz ayar');
+    return newState(a.size, a.hostColor, s0.v + 1, a.gid);
+  }
+  const s = JSON.parse(JSON.stringify(s0));
+  switch (a.type) {
+    case 'play': {
+      if (s.phase !== 'play') throw new Error('Şu an taş konamaz');
+      if (s.turn !== color) throw new Error('Sıra sende değil');
+      const r = tryPlay(s, a.i, color);
+      s.koBoard = s.board.join('');
+      s.board = r.board;
+      s.captures[color] += r.captured;
+      s.lastMove = { i: a.i, c: color };
+      s.passes = 0; s.moveNo++; s.turn = other(color);
+      break;
+    }
+    case 'pass': {
+      if (s.phase !== 'play') throw new Error('Şu an pas geçilemez');
+      if (s.turn !== color) throw new Error('Sıra sende değil');
+      s.koBoard = s.board.join('');
+      s.lastMove = { pass: true, c: color };
+      s.passes++; s.moveNo++; s.turn = other(color);
+      if (s.passes >= 2) { s.phase = 'scoring'; s.dead = []; s.approvals = { 1: false, 2: false }; }
+      break;
+    }
+    case 'resign': {
+      if (s.phase === 'over') throw new Error('Oyun zaten bitti');
+      s.phase = 'over';
+      s.result = { reason: 'resign', winner: other(color) };
+      break;
+    }
+    case 'toggleDead': {
+      if (s.phase !== 'scoring') throw new Error('Sayım aşamasında değilsin');
+      if (!Number.isInteger(a.i) || a.i < 0 || a.i >= s.board.length || s.board[a.i] === 0) throw new Error('Burada taş yok');
+      const g = groupAt(s.board, s.size, a.i).stones;
+      const dead = new Set(s.dead);
+      if (dead.has(a.i)) g.forEach((x) => dead.delete(x)); else g.forEach((x) => dead.add(x));
+      s.dead = [...dead].sort((x, y) => x - y);
+      s.approvals = { 1: false, 2: false };
+      break;
+    }
+    case 'approve': {
+      if (s.phase !== 'scoring') throw new Error('Sayım aşamasında değilsin');
+      s.approvals[color] = true;
+      if (s.approvals[1] && s.approvals[2]) {
+        const sc = computeScore(s);
+        s.phase = 'over';
+        s.result = { reason: 'score', b: sc.total[1], w: sc.total[2], winner: sc.total[1] > sc.total[2] ? BLACK : WHITE };
+      }
+      break;
+    }
+    case 'resume': {
+      if (s.phase !== 'scoring') throw new Error('Sayım aşamasında değilsin');
+      s.phase = 'play'; s.passes = 0; s.dead = []; s.approvals = { 1: false, 2: false };
+      break;
+    }
+    default: throw new Error('Bilinmeyen eylem');
+  }
+  s.v++;
+  s.log.push([actor, a]);
+  return s;
+}
+
+// Bölge + esir (komi beyaza). Ölü taşlar esir sayılır ve yerleri bölgeye katılır.
+function computeScore(s) {
+  const n = s.size, b = s.board.slice(), dead = new Set(s.dead);
+  const prisoners = { 1: s.captures[1], 2: s.captures[2] };
+  const deadCount = { 1: 0, 2: 0 };
+  for (const i of dead) { if (b[i]) { deadCount[other(b[i])]++; b[i] = 0; } }
+  const terr = { 1: 0, 2: 0 }, owner = new Array(n * n).fill(0), seen = new Uint8Array(n * n);
+  for (let i = 0; i < n * n; i++) {
+    if (b[i] !== 0 || seen[i]) continue;
+    const region = [i], borders = new Set();
+    seen[i] = 1;
+    for (let k = 0; k < region.length; k++) {
+      for (const nb of neighbors(region[k], n)) {
+        if (b[nb] === 0) { if (!seen[nb]) { seen[nb] = 1; region.push(nb); } }
+        else borders.add(b[nb]);
+      }
+    }
+    if (borders.size === 1) {
+      const c = [...borders][0];
+      terr[c] += region.length;
+      region.forEach((x) => (owner[x] = c));
+    }
+  }
+  const total = {
+    1: terr[1] + prisoners[1] + deadCount[1],
+    2: terr[2] + prisoners[2] + deadCount[2] + s.komi,
+  };
+  return { terr, prisoners, deadCount, total, owner };
+}
+
+/* ================= Durum ve kalıcılık ================= */
+const params = new URLSearchParams(location.search);
+const room = (params.get('room') || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 24);
+const K = {
+  game: 'go:game:' + room,  // oyun durumu (localStorage)
+  host: 'go:host:' + room,  // bu tarayıcı odayı kurdu
+  guest: 'go:guest:' + room, // kurucu: ikinci oyuncunun kimliği
+  cid: 'go:cid:' + room,    // misafir kimliği (localStorage + sessionStorage)
+  me: 'go:me:' + room,      // bu sekmenin koltuğu (sessionStorage)
+};
+let state = null;
+const ui = { hover: null, pending: null, pointer: 'mouse' };
+
+function setState(s) {
+  state = s;
+  ui.pending = null;
+  if (room) store.set(K.game, s);
+  render();
+}
+
+/* ================= Ağ (PeerJS) ================= */
+const hostPeerId = (r) => 'jgo-' + r + '-host';
+const PEER_OPTS = Object.assign({ debug: 1 }, window.GO_PEER_OPTS || {});
+const net = {
+  role: null,         // 'host' | 'guest' | 'spectator' | 'joining'
+  strong: true,       // bu sekme koltuk için kesin hak iddia ediyor mu
+  peer: null, everOpen: false, notBefore: 0,
+  // kurucu
+  conns: new Set(), guestConn: null, guestId: null,
+  // misafir/izleyici
+  cid: null, hostConn: null, pending: null, pendingAt: 0, everConnected: false, hostMissing: false, replaced: false,
+  presence: { guestOnline: false, spectators: 0 },
+};
+function send(c, m) { try { if (c && c.open) c.send(m); } catch {} }
+
+function makePeer(id) {
+  if (typeof Peer === 'undefined') { toast('PeerJS yüklenemedi. İnternet bağlantını kontrol et.', 6000); return null; }
+  const p = id ? new Peer(id, PEER_OPTS) : new Peer(PEER_OPTS);
+  net.peer = p;
+  p.on('open', () => { if (net.peer !== p) return; net.everOpen = true; updateConn(); if (net.role !== 'host') clientConnect(); });
+  p.on('disconnected', () => { if (net.peer === p) updateConn(); });
+  p.on('error', (err) => onPeerError(p, err));
+  return p;
+}
+function onPeerError(p, err) {
+  if (net.peer !== p) return;
+  const t = err && err.type;
+  if (t === 'unavailable-id') {
+    p.destroy(); net.peer = null;
+    if (net.strong) { net.notBefore = Date.now() + 2500; } // eski bağlantı sunucudan düşene kadar bekle
+    else { // bu oda başka bir sekmede zaten açık: oyuncu/izleyici olarak katıl
+      net.role = 'joining'; net.strong = true; net.cid = rid(12);
+    }
+  } else if (t === 'peer-unavailable') {
+    if (net.pending) { try { net.pending.close(); } catch {} net.pending = null; }
+    net.hostMissing = true; net.notBefore = Date.now() + 2500;
+  } else if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(t)) {
+    net.notBefore = Date.now() + 2000;
+  } else if (t === 'browser-incompatible') {
+    toast('Tarayıcın WebRTC desteklemiyor.', 6000);
+  }
+  updateConn();
+}
+
+/* ---- Kurucu ---- */
+function hostAccept(c) {
+  c._last = Date.now();
+  c._role = null;
+  net.conns.add(c);
+  c.on('data', (m) => { c._last = Date.now(); hostOnMsg(c, m); });
+  c.on('close', () => hostDrop(c));
+  c.on('error', () => hostDrop(c));
+}
+function hostDrop(c) {
+  if (!net.conns.has(c)) return;
+  net.conns.delete(c);
+  try { c.close(); } catch {}
+  if (net.guestConn === c) net.guestConn = null;
+  broadcastPresence();
+}
+function hostBroadcast(m, except) { for (const c of net.conns) if (c !== except && c._role) send(c, m); }
+function broadcastPresence() {
+  const spectators = [...net.conns].filter((c) => c._role === 'spectator').length;
+  net.presence = { guestOnline: !!net.guestConn, spectators };
+  hostBroadcast({ t: 'presence', ...net.presence });
+  render();
+}
+function publicState() { return state; }
+// Misafirin elindeki durum daha ilerideyse, eksik eylemleri kurallara göre tekrar oynatarak al.
+function tryCatchUp(theirs) {
+  if (!theirs || theirs.gid !== state.gid || !(theirs.v > state.v) || !Array.isArray(theirs.log)) return false;
+  const mine = state.log.length;
+  if (theirs.log.length - mine !== theirs.v - state.v) return false;
+  if (JSON.stringify(theirs.log.slice(0, mine)) !== JSON.stringify(state.log)) return false;
+  try {
+    let s = state;
+    for (const [actor, a] of theirs.log.slice(mine)) s = applyAction(s, a, actor);
+    setState(s);
+    return true;
+  } catch { return false; }
+}
+function hostOnMsg(c, m) {
+  if (!m || typeof m !== 'object') return;
+  switch (m.t) {
+    case 'hello': {
+      const cid = typeof m.cid === 'string' ? m.cid.slice(0, 40) : '';
+      let role = 'spectator';
+      if (cid && !net.guestId) {
+        net.guestId = cid; store.set(K.guest, cid); role = 'guest';
+      } else if (cid && cid === net.guestId) {
+        const live = net.guestConn && net.guestConn !== c && net.guestConn.open;
+        if (live && !m.strong) role = 'spectator';
+        else {
+          if (live) { send(net.guestConn, { t: 'replaced' }); const old = net.guestConn; setTimeout(() => hostDrop(old), 300); }
+          role = 'guest';
+        }
+      }
+      c._role = role;
+      if (role === 'guest') {
+        net.guestConn = c;
+        if (tryCatchUp(m.state)) toast('Rakibin son hamleleri alındı');
+      }
+      send(c, { t: 'welcome', role, cid, state: publicState() });
+      broadcastPresence();
+      break;
+    }
+    case 'action': {
+      if (c !== net.guestConn) return;
+      if (m.base !== state.v) { send(c, { t: 'state', state, error: 'Durum güncellendi, tekrar dene' }); return; }
+      let ns;
+      try { ns = applyAction(state, m.a, 'guest'); }
+      catch (e) { send(c, { t: 'state', state, error: e.message }); return; }
+      setState(ns);
+      hostBroadcast({ t: 'action', base: m.base, a: m.a, actor: 'guest' }, c);
+      send(c, { t: 'ack', v: state.v });
+      announce(m.a, 'guest');
+      break;
+    }
+    case 'sync': send(c, { t: 'state', state }); break;
+    case 'ping': send(c, { t: 'pong' }); break;
+  }
+}
+function startHost(strong) {
+  net.role = 'host';
+  net.strong = strong;
+  net.guestId = store.get(K.guest);
+  if (makePeer(hostPeerId(room))) net.peer.on('connection', (c) => { if (net.role === 'host') hostAccept(c); });
+}
+
+/* ---- Misafir / izleyici ---- */
+function clientConnect() {
+  const p = net.peer;
+  if (!p || !p.open || net.pending || (net.hostConn && net.hostConn.open) || net.replaced) return;
+  if (Date.now() < net.notBefore) return;
+  const c = p.connect(hostPeerId(room), { reliable: true });
+  net.pending = c; net.pendingAt = Date.now();
+  c.on('open', () => {
+    if (net.pending !== c) { try { c.close(); } catch {} return; }
+    net.pending = null; net.hostConn = c; net.hostMissing = false; c._last = Date.now();
+    send(c, { t: 'hello', cid: net.cid, strong: net.strong, state });
+    updateConn();
+  });
+  c.on('data', (m) => { c._last = Date.now(); if (net.hostConn === c) clientOnMsg(m); });
+  c.on('close', () => clientDrop(c));
+  c.on('error', () => clientDrop(c));
+}
+function clientDrop(c) {
+  if (net.pending === c) net.pending = null;
+  if (net.hostConn === c) { net.hostConn = null; net.notBefore = Date.now() + 1000; }
+  try { c.close(); } catch {}
+  updateConn();
+  render();
+}
+function clientOnMsg(m) {
+  if (!m || typeof m !== 'object') return;
+  switch (m.t) {
+    case 'welcome': {
+      net.role = m.role; net.strong = true; net.everConnected = true;
+      store.set(K.me, { cid: net.cid }, true);
+      if (m.role === 'guest') store.set(K.cid, net.cid);
+      setState(m.state);
+      if (m.role === 'spectator') toast('Bu odada iki oyuncu var. İzleyici olarak katıldın.', 4000);
+      break;
+    }
+    case 'state':
+      setState(m.state);
+      if (m.error) toast(m.error);
+      break;
+    case 'action': {
+      if (!state || m.base < state.v) return; // zaten elimizde
+      if (m.base > state.v) { send(net.hostConn, { t: 'sync' }); return; }
+      try { setState(applyAction(state, m.a, m.actor)); announce(m.a, m.actor); }
+      catch (e) { toast('Geçersiz hamle alındı, eşitleniyor…'); send(net.hostConn, { t: 'sync' }); }
+      break;
+    }
+    case 'presence': net.presence = { guestOnline: !!m.guestOnline, spectators: m.spectators | 0 }; render(); break;
+    case 'replaced':
+      net.replaced = true;
+      if (net.hostConn) { try { net.hostConn.close(); } catch {} net.hostConn = null; }
+      showNotice('Bu koltuk başka bir sekmede açıldı. Buradan devam etmek için sayfayı yenile.');
+      updateConn();
+      break;
+    case 'ping': send(net.hostConn, { t: 'pong' }); break;
+  }
+}
+function startClient(cid, strong) {
+  net.role = 'joining';
+  net.cid = cid; net.strong = strong;
+  makePeer(null);
+}
+
+/* ---- Bekçi: yeniden bağlanma ve nabız ---- */
+setInterval(() => {
+  if (!room || !net.role) return;
+  const now = Date.now();
+  const p = net.peer;
+  if (!p || p.destroyed) {
+    if (now >= net.notBefore && !net.replaced) {
+      if (net.role === 'host') startHost(net.strong);
+      else makePeer(null);
+    }
+  } else if (p.disconnected) {
+    if (now >= net.notBefore) { net.notBefore = now + 3000; try { p.reconnect(); } catch {} }
+  }
+  if (net.role === 'host') {
+    for (const c of [...net.conns]) {
+      if (now - c._last > 15000) hostDrop(c); else send(c, { t: 'ping' });
+    }
+  } else {
+    if (net.pending && now - net.pendingAt > 12000) { try { net.pending.close(); } catch {} net.pending = null; }
+    if (net.hostConn) {
+      if (now - net.hostConn._last > 15000) clientDrop(net.hostConn); else send(net.hostConn, { t: 'ping' });
+    } else clientConnect();
+  }
+  updateConn();
+}, 3000);
+window.addEventListener('online', () => { net.notBefore = 0; });
+
+function updateConn() {
+  const el = $('#conn');
+  if (!room) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  let s, text;
+  if (net.replaced) { s = 'disconnected'; text = 'Başka sekmede açık'; }
+  else if (net.role === 'host') {
+    const open = net.peer && net.peer.open;
+    if (open) { s = 'connected'; text = net.guestConn ? 'Bağlı' : 'Bağlı · rakip bekleniyor'; }
+    else if (!net.everOpen) { s = 'connecting'; text = 'Bağlanıyor…'; }
+    else { s = 'disconnected'; text = 'Bağlantı koptu · yeniden bağlanılıyor'; }
+  } else {
+    if (net.hostConn && net.hostConn.open) { s = 'connected'; text = 'Bağlı'; }
+    else if (!net.everConnected) { s = 'connecting'; text = net.hostMissing ? 'Kurucu bekleniyor…' : 'Bağlanıyor…'; }
+    else { s = 'disconnected'; text = net.hostMissing ? 'Koptu · kurucu bekleniyor' : 'Bağlantı koptu · yeniden bağlanılıyor'; }
+  }
+  if (el.dataset.s !== s || $('#conn-text').textContent !== text) {
+    el.dataset.s = s; $('#conn-text').textContent = text;
+    if (state) renderPlayers();
+  }
+}
+
+/* ================= Eylemler ================= */
+function myActor() { return net.role === 'host' ? 'host' : net.role === 'guest' ? 'guest' : null; }
+function myColor() { const a = myActor(); return a && state ? colorOf(state, a) : null; }
+function doAction(a) {
+  const actor = myActor();
+  if (!actor || !state) return;
+  if (actor === 'guest' && !(net.hostConn && net.hostConn.open)) { toast('Bağlantı yok, yeniden bağlanılıyor…'); return; }
+  let ns;
+  try { ns = applyAction(state, a, actor); } catch (e) { toast(e.message); return; }
+  const base = state.v;
+  setState(ns);
+  if (actor === 'host') hostBroadcast({ t: 'action', base, a, actor });
+  else send(net.hostConn, { t: 'action', base, a });
+}
+function announce(a, actor) {
+  if (!state) return;
+  const c = COLOR_NAME[colorOf(state, actor)];
+  if (a.type === 'pass') toast(c + ' pas geçti');
+  else if (a.type === 'resign') toast(c + ' teslim oldu');
+  else if (a.type === 'newGame') toast('Yeni oyun başladı');
+  else if (a.type === 'resume') toast('Oyuna devam ediliyor');
+}
+
+/* ================= Tahta çizimi ================= */
+const CELL = 40, MARGIN = 38;
+const svg = $('#board');
+const SVGNS = 'http://www.w3.org/2000/svg';
+let builtSize = 0;
+const P = (k) => MARGIN + k * CELL;
+function starPoints(n) {
+  if (n === 9) return [[2, 2], [6, 2], [4, 4], [2, 6], [6, 6]];
+  if (n === 13) return [[3, 3], [9, 3], [6, 6], [3, 9], [9, 9]];
+  const r = [];
+  for (const x of [3, 9, 15]) for (const y of [3, 9, 15]) r.push([x, y]);
+  return r;
+}
+function buildBoard(n) {
+  builtSize = n;
+  const W = (n - 1) * CELL + 2 * MARGIN, end = P(n - 1);
+  let h = `<defs>
+    <radialGradient id="gb" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#6b6b6b"/><stop offset=".55" stop-color="#1a1a1a"/><stop offset="1" stop-color="#000"/></radialGradient>
+    <radialGradient id="gw" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff"/><stop offset=".7" stop-color="#ececec"/><stop offset="1" stop-color="#c4c4c4"/></radialGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="1.2" dy="1.8" stdDeviation="1.2" flood-opacity=".35"/></filter>
+  </defs>
+  <rect class="wood" x="1" y="1" width="${W - 2}" height="${W - 2}" rx="10"/>`;
+  for (let k = 0; k < n; k++) {
+    const e = k === 0 || k === n - 1 ? ' edge' : '';
+    h += `<line class="ln${e}" x1="${P(0)}" y1="${P(k)}" x2="${end}" y2="${P(k)}"/>`;
+    h += `<line class="ln${e}" x1="${P(k)}" y1="${P(0)}" x2="${P(k)}" y2="${end}"/>`;
+  }
+  for (const [x, y] of starPoints(n)) h += `<circle class="star" cx="${P(x)}" cy="${P(y)}" r="${n === 19 ? 3.6 : 4}"/>`;
+  for (let k = 0; k < n; k++) {
+    const l = LETTERS[k], num = n - k;
+    h += `<text class="coord" x="${P(k)}" y="${MARGIN / 2 - 2}">${l}</text><text class="coord" x="${P(k)}" y="${W - MARGIN / 2 + 2}">${l}</text>`;
+    h += `<text class="coord" x="${MARGIN / 2 - 2}" y="${P(k)}">${num}</text><text class="coord" x="${W - MARGIN / 2 + 2}" y="${P(k)}">${num}</text>`;
+  }
+  h += `<g id="l-terr"></g><g id="l-stones"></g><g id="l-marks"></g><g id="l-ghost"></g>
+    <rect class="hit" id="hit" x="0" y="0" width="${W}" height="${W}"/>`;
+  svg.setAttribute('viewBox', `0 0 ${W} ${W}`);
+  svg.innerHTML = h;
+  const hit = $('#hit');
+  hit.addEventListener('pointerdown', (e) => { ui.pointer = e.pointerType || 'mouse'; });
+  hit.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    const i = idxFromEvent(e);
+    if (i !== ui.hover) { ui.hover = i; renderGhost(); }
+  });
+  hit.addEventListener('pointerleave', () => { ui.hover = null; renderGhost(); });
+  hit.addEventListener('click', (e) => {
+    const i = idxFromEvent(e);
+    if (i != null) onPoint(i, ui.pointer !== 'mouse');
+  });
+}
+function idxFromEvent(e) {
+  const n = state.size, ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+  const x = Math.round((pt.x - MARGIN) / CELL), y = Math.round((pt.y - MARGIN) / CELL);
+  if (x < 0 || y < 0 || x >= n || y >= n) return null;
+  if (Math.hypot(pt.x - P(x), pt.y - P(y)) > CELL * 0.62) return null;
+  return y * n + x;
+}
+function stoneSvg(i, c, extra = '') {
+  const n = state.size, x = P(i % n), y = P((i / n) | 0);
+  const stroke = c === WHITE ? ' stroke="#8a8a8a" stroke-width=".8"' : '';
+  return `<circle cx="${x}" cy="${y}" r="${CELL * 0.47}" fill="url(#g${c === BLACK ? 'b' : 'w'})"${stroke}${extra}/>`;
+}
+function renderBoard() {
+  const s = state, n = s.size;
+  if (builtSize !== n) buildBoard(n);
+  const dead = new Set(s.phase === 'scoring' ? s.dead : s.phase === 'over' && s.result && s.result.reason === 'score' ? s.dead : []);
+  let stones = '', marks = '', terr = '';
+  for (let i = 0; i < n * n; i++) {
+    const c = s.board[i];
+    if (!c) continue;
+    stones += dead.has(i) ? stoneSvg(i, c, ' opacity=".38"') : stoneSvg(i, c, ' filter="url(#sh)"');
+  }
+  const showTerr = s.phase === 'scoring' || (s.phase === 'over' && s.result && s.result.reason === 'score');
+  if (showTerr) {
+    const sc = computeScore(s), q = CELL * 0.32;
+    for (let i = 0; i < n * n; i++) {
+      const o = sc.owner[i] || (dead.has(i) ? other(s.board[i]) : 0);
+      if (!o) continue;
+      const x = P(i % n) - q / 2, y = P((i / n) | 0) - q / 2;
+      terr += `<rect x="${x}" y="${y}" width="${q}" height="${q}" rx="2" fill="${o === BLACK ? '#111' : '#fafafa'}" stroke="${o === BLACK ? '#000' : '#777'}" stroke-width=".8"/>`;
+    }
+  }
+  if (s.lastMove && s.lastMove.i != null && s.board[s.lastMove.i]) {
+    const i = s.lastMove.i, x = P(i % n), y = P((i / n) | 0);
+    const col = s.board[i] === BLACK ? '#fff' : '#111';
+    marks += `<circle cx="${x}" cy="${y}" r="${CELL * 0.2}" fill="none" stroke="${col}" stroke-width="2.6" data-last="1"/>`;
+  }
+  $('#l-stones').innerHTML = stones;
+  $('#l-marks').innerHTML = marks;
+  $('#l-terr').innerHTML = terr;
+  renderGhost();
+}
+function canPlayNow() {
+  return state && state.phase === 'play' && myColor() === state.turn &&
+    (net.role === 'host' || (net.hostConn && net.hostConn.open));
+}
+function renderGhost() {
+  const g = $('#l-ghost');
+  if (!g) return;
+  const i = ui.pending != null ? ui.pending : ui.hover;
+  if (i == null || !canPlayNow() || state.board[i] !== 0) { g.innerHTML = ''; return; }
+  let h = stoneSvg(i, myColor(), ' opacity=".5" data-ghost="1"');
+  if (ui.pending != null) {
+    const n = state.size;
+    h += `<circle cx="${P(i % n)}" cy="${P((i / n) | 0)}" r="${CELL * 0.56}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="5 4"/>`;
+  }
+  g.innerHTML = h;
+}
+function onPoint(i, touch) {
+  if (!state) return;
+  const me = myColor();
+  if (!me) return;
+  if (state.phase === 'scoring') {
+    if (state.board[i]) doAction({ type: 'toggleDead', i });
+    return;
+  }
+  if (state.phase !== 'play') return;
+  if (state.turn !== me) { toast('Sıra rakibinde'); return; }
+  if (state.board[i]) return;
+  if (!canPlayNow()) { toast('Bağlantı yok, yeniden bağlanılıyor…'); return; }
+  if (touch && ui.pending !== i) {
+    try { tryPlay(state, i, me); } catch (e) { toast(e.message); ui.pending = null; renderGhost(); return; }
+    ui.pending = i; renderGhost();
+    renderStatus();
+    return;
+  }
+  doAction({ type: 'play', i });
+}
+
+/* ================= Arayüz ================= */
+function pointName(i) { const n = state.size; return LETTERS[i % n] + (n - ((i / n) | 0)); }
+function renderPlayers() {
+  const s = state, me = myColor();
+  for (const c of [BLACK, WHITE]) {
+    const el = $('#p' + c);
+    const isHostSeat = s.hostColor === c;
+    let who, online;
+    if (me === c) { who = 'Sen'; online = net.role === 'host' ? !!(net.peer && net.peer.open) : !!(net.hostConn && net.hostConn.open); }
+    else if (net.role === 'host') { who = 'Rakip'; online = !!net.guestConn; }
+    else if (net.role === 'guest') { who = 'Rakip'; online = !!(net.hostConn && net.hostConn.open); }
+    else { who = isHostSeat ? 'Kurucu' : 'Misafir'; online = isHostSeat ? !!(net.hostConn && net.hostConn.open) : net.presence.guestOnline; }
+    const oText = online ? 'çevrim içi' : (net.role === 'host' && me !== c && !net.guestId ? 'bekleniyor' : 'çevrim dışı');
+    el.className = 'player' + (s.phase === 'play' && s.turn === c ? ' turn' : '');
+    el.innerHTML = `<span class="stone ${c === BLACK ? 'b' : 'w'}"></span>
+      <span class="who">${COLOR_NAME[c]} · ${who}<small><span class="dot${online ? ' on' : ''}"></span>${oText}</small></span>
+      <span class="caps"><b data-caps="${c}">${s.captures[c]}</b>esir</span>`;
+  }
+}
+function renderStatus() {
+  const s = state, me = myColor();
+  let main = '', sub = '';
+  if (s.phase === 'play') {
+    if (!me) main = `Sıra: ${COLOR_NAME[s.turn]}`;
+    else if (s.turn === me) main = 'Sıra sende';
+    else main = 'Rakibin sırası';
+    if (s.lastMove && s.lastMove.pass) sub = `${COLOR_NAME[s.lastMove.c]} pas geçti` + (s.turn === me ? ' — sen de pas geçersen sayıma geçilir.' : '');
+    else if (s.lastMove) sub = `Son hamle: ${COLOR_NAME[s.lastMove.c]} ${pointName(s.lastMove.i)} · ${s.moveNo}. hamle`;
+    else sub = 'Siyah başlar';
+    if (ui.pending != null && me) sub = 'Koymak için aynı noktaya tekrar dokun';
+  } else if (s.phase === 'scoring') {
+    main = 'Sayım';
+    sub = me ? 'Ölü grupların üzerine dokunarak işaretle, sonra onayla.' : 'Oyuncular ölü grupları işaretliyor.';
+  } else if (s.phase === 'over') {
+    main = resultText(s);
+  }
+  $('#status').innerHTML = `${main}${sub ? `<small>${sub}</small>` : ''}`;
+}
+function resultText(s) {
+  const r = s.result;
+  if (!r) return 'Oyun bitti';
+  if (r.reason === 'resign') return `${COLOR_NAME[other(r.winner)]} teslim oldu — ${COLOR_NAME[r.winner]} kazandı`;
+  return `${COLOR_NAME[r.winner]} ${fmt(Math.abs(r.b - r.w))} puanla kazandı`;
+}
+function renderControls() {
+  const s = state, me = myColor(), el = $('#controls');
+  if (!me) { el.innerHTML = '<p class="muted" style="grid-column:1/-1;text-align:center;margin:0">İzleyicisin</p>'; return; }
+  const connected = net.role === 'host' || (net.hostConn && net.hostConn.open);
+  if (s.phase === 'play') {
+    el.innerHTML = `<button class="btn" id="pass-btn" ${s.turn === me && connected ? '' : 'disabled'}>Pas geç</button>
+      <button class="btn danger" id="resign-btn" ${connected ? '' : 'disabled'}>Teslim ol</button>`;
+    $('#pass-btn').onclick = () => {
+      if (s.passes === 1 || confirm('Pas geçmek istediğine emin misin?')) doAction({ type: 'pass' });
+    };
+    $('#resign-btn').onclick = () => { if (confirm('Teslim olmak istediğine emin misin?')) doAction({ type: 'resign' }); };
+  } else if (s.phase === 'scoring') {
+    const approved = s.approvals[me];
+    el.innerHTML = `<button class="btn primary" id="approve-btn" ${approved || !connected ? 'disabled' : ''}>${approved ? 'Onayladın' : 'Skoru onayla'}</button>
+      <button class="btn" id="resume-btn" ${connected ? '' : 'disabled'}>Oyuna dön</button>`;
+    $('#approve-btn').onclick = () => doAction({ type: 'approve' });
+    $('#resume-btn').onclick = () => doAction({ type: 'resume' });
+  } else {
+    el.innerHTML = net.role === 'host'
+      ? '<button class="btn primary" id="again-btn" style="grid-column:1/-1">Yeni oyun</button>'
+      : '<p class="muted" style="grid-column:1/-1;text-align:center;margin:0">Kurucu yeni oyun başlatabilir.</p>';
+    if (net.role === 'host') $('#again-btn').onclick = openNewGame;
+  }
+}
+function renderScore() {
+  const s = state, card = $('#score-card');
+  const show = s.phase === 'scoring' || (s.phase === 'over' && s.result);
+  card.classList.toggle('hidden', !show);
+  if (!show) return;
+  let h = '';
+  if (s.phase === 'over') h += `<p class="result">${resultText(s)}</p>`;
+  else h += '<h3>Sayım</h3>';
+  if (s.phase === 'scoring' || s.result.reason === 'score') {
+    const sc = computeScore(s);
+    h += `<table class="score-table"><thead><tr><th></th><th>Siyah</th><th>Beyaz</th></tr></thead><tbody>
+      <tr><td>Bölge</td><td>${sc.terr[1]}</td><td>${sc.terr[2]}</td></tr>
+      <tr><td>Esir</td><td>${sc.prisoners[1]}</td><td>${sc.prisoners[2]}</td></tr>
+      <tr><td>Ölü taş</td><td>${sc.deadCount[1]}</td><td>${sc.deadCount[2]}</td></tr>
+      <tr><td>Komi</td><td>–</td><td>${fmt(s.komi)}</td></tr>
+      <tr class="total"><td>Toplam</td><td data-score="1">${fmt(sc.total[1])}</td><td data-score="2">${fmt(sc.total[2])}</td></tr>
+      </tbody></table>`;
+  }
+  if (s.phase === 'scoring') {
+    const a = (c) => s.approvals[c] ? '<span class="yes">✓ onayladı</span>' : 'bekliyor';
+    h += `<div class="approvals"><span>Siyah: ${a(1)}</span><span>Beyaz: ${a(2)}</span></div>
+      <p class="muted" style="margin:8px 0 0">İşaret değişirse onaylar sıfırlanır.</p>`;
+  }
+  card.innerHTML = h;
+}
+function renderSide() {
+  const host = net.role === 'host';
+  const url = location.origin + location.pathname + '?room=' + room;
+  const inv = $('#invite-card');
+  const waiting = host && !net.guestId;
+  inv.classList.toggle('prominent', waiting);
+  $('#invite-title').textContent = waiting ? 'Rakibini davet et' : 'Oda linki';
+  $('#invite-text').textContent = waiting
+    ? 'Bu linki rakibine gönder. Linki açan ilk kişi ikinci oyuncu olur.'
+    : 'Linki açan diğer kişiler izleyici olarak katılır.';
+  if ($('#invite-url').value !== url) $('#invite-url').value = url;
+  $('#host-tools').classList.toggle('hidden', !host);
+  const roleText = { host: 'Kurucu', guest: 'İkinci oyuncu', spectator: 'İzleyici', joining: 'Katılıyor…' }[net.role] || '';
+  const spec = net.presence.spectators;
+  $('#info').innerHTML = `Oda: <b>${room}</b> · ${state.size}×${state.size} · komi ${fmt(state.komi)}<br>Rolün: ${roleText}${spec ? ` · ${spec} izleyici` : ''}`;
+}
+function showNotice(text) {
+  const el = $('#notice-card');
+  el.textContent = text;
+  el.classList.toggle('hidden', !text);
+}
+function render() {
+  if (!state) return;
+  $('#game').classList.remove('hidden');
+  renderPlayers();
+  renderStatus();
+  renderBoard();
+  renderControls();
+  renderScore();
+  renderSide();
+  updateConn();
+}
+
+/* ================= Linki kopyala ================= */
+$('#copy-btn').addEventListener('click', async () => {
+  const input = $('#invite-url');
+  try { await navigator.clipboard.writeText(input.value); }
+  catch { input.select(); try { document.execCommand('copy'); } catch {} }
+  $('#copy-btn').textContent = 'Kopyalandı ✓';
+  setTimeout(() => ($('#copy-btn').textContent = 'Linki kopyala'), 1800);
+});
+
+/* ================= Yeni oyun ================= */
+function readColor(v) { return v === 'r' ? (Math.random() < 0.5 ? BLACK : WHITE) : Number(v); }
+function openNewGame() {
+  const f = $('#newgame-form');
+  f.size.value = String(state.size);
+  f.color.value = String(other(state.hostColor));
+  $('#newgame-warn').classList.toggle('hidden', state.phase === 'over');
+  $('#newgame-dlg').showModal();
+}
+$('#newgame-btn').addEventListener('click', openNewGame);
+$('#newgame-dlg').addEventListener('close', () => {
+  if ($('#newgame-dlg').returnValue !== 'ok') return;
+  const f = $('#newgame-form');
+  doAction({ type: 'newGame', size: Number(f.size.value), hostColor: readColor(f.color.value), gid: rid(8) });
+});
+
+/* ================= Başlangıç ================= */
+$('#create-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const r = rid(8);
+  const s = newState(Number(f.size.value), readColor(f.color.value));
+  store.set('go:game:' + r, s);
+  store.set('go:host:' + r, true);
+  store.set('go:me:' + r, { role: 'host' }, true);
+  location.href = location.pathname + '?room=' + r;
+});
+
+function boot() {
+  if (!room) { $('#lobby').classList.remove('hidden'); return; }
+  const me = store.get(K.me, true);
+  if (me && me.role === 'host') {
+    state = store.get(K.game) || newState(19, BLACK);
+    startHost(true);
+  } else if (!me && store.get(K.host)) {
+    // Bu tarayıcı odayı kurdu ama bu sekme yeni: kurucu başka sekmede açıksa misafir/izleyici oluruz.
+    state = store.get(K.game) || newState(19, BLACK);
+    startHost(false);
+  } else {
+    state = store.get(K.game);
+    const cid = (me && me.cid) || store.get(K.cid);
+    startClient(cid || rid(12), !!(me && me.cid) || !cid);
+  }
+  if (state) render();
+  else { $('#game').classList.remove('hidden'); $('#status').textContent = 'Odaya bağlanılıyor…'; }
+  updateConn();
+}
+boot();
+</script>
+</body>
+</html>
